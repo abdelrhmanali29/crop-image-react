@@ -1,87 +1,87 @@
-import React, { useState } from "react";
-import axois from "axios";
-import ReactCrop from "react-image-crop";
-import "react-image-crop/dist/ReactCrop.css";
+import React, { useState, useEffect } from "react";
+import Profile from "./Profile";
+import fire from "./fire";
+import firebase from "firebase";
+
+export const UserContext = React.createContext();
 
 function App() {
-  const [src, setSrc] = useState(null);
-  const [image, setImage] = useState(null);
-  const [crop, setCrop] = useState({ aspect: 1 / 1 });
-  const [result, setResult] = useState(null);
+  const [user, setUser] = useState(null);
 
-  const options = {
-    onUploadProgress: (ProgressEvent) => {
-      const { loaded, total } = ProgressEvent;
-      let precent = Math.floor((loaded * 100) / total);
-      console.log(`${loaded}kb of ${total}kb | ${precent}% `);
-    },
-  };
-
-  const uploadImage = async (e) => {
-    // const files = e.target.files[0];
-    // setImage(files);
-    const data = new FormData();
-    data.append("upload_preset", "uploadImages");
-    data.append("file", result);
-
-    axois
-      .post(
-        "https://api.cloudinary.com/v1_1/dqmuowojl/image/upload",
-        data,
-        options
-      )
-      .then((res) => setImage(res.data.secure_url))
-      .catch((err) => console.log(err));
-  };
-
-  const handleFileChange = (e) => {
-    setSrc(URL.createObjectURL(e.target.files[0]));
-  };
-
-  function getCroppedImg() {
-    const canvas = document.createElement("canvas");
-    const scaleX = image.naturalWidth / image.width;
-    const scaleY = image.naturalHeight / image.height;
-    canvas.width = crop.width;
-    canvas.height = crop.height;
-    const ctx = canvas.getContext("2d");
-
-    ctx.drawImage(
-      image,
-      crop.x * scaleX,
-      crop.y * scaleY,
-      crop.width * scaleX,
-      crop.height * scaleY,
-      0,
-      0,
-      crop.width,
-      crop.height
-    );
-
-    const base64Image = canvas.toDataURL("image/jpeg");
-    setResult(base64Image);
+  function onsubmit() {
+    var provider = new firebase.auth.GoogleAuthProvider();
+    fire
+      .auth()
+      .signInWithPopup(provider)
+      .then(function (result) {
+        // This gives you a Google Access Token. You can use it to access the Google API.
+        // var token = result.credential.accessToken;
+        // The signed-in user info.
+        // var user = result.user;
+        // console.log(user);
+        // ...
+      })
+      .catch(function (error) {
+        console.log(error);
+      });
+    
+    fire.auth().onAuthStateChanged((user) => {
+      if (user) {
+        setUser(user);
+        console.log(user.displayName);
+        console.log(user);
+      } else {
+        setUser(null);
+      }
+    });
   }
+
+
+  useEffect(() => {
+    fire.auth().onAuthStateChanged((user) => {
+      if (user) {
+        setUser(user);
+        console.log(user.displayName);
+        console.log(user);
+      } else {
+        setUser(null);
+      }
+    });
+  })
+
+
+  function logOut() {
+    setUser(null)
+
+    firebase
+      .auth()
+      .signOut()
+      .then(function () {
+        // Sign-out successful.
+      })
+      .catch(function (error) {
+        // An error happened.
+      });
+  }
+
   return (
     <div className="App">
-      <h1> Upload image </h1>
-      <input type="file" name="image" onChange={handleFileChange} />
-      {src && (
-        <div>
-          <ReactCrop
-            src={src}
-            onImageLoaded={setImage}
-            crop={crop}
-            onChange={setCrop}
+      <UserContext.Provider value={{ user }}>
+          <button onClick={onsubmit}>Login with Google</button>
+          <button onClick={logOut}> Log out </button>
+        
+        {user ? (
+          <div>
+          <img
+          src={user.photoURL}
+          alt=""
+          style={{ height: "50px", width: "50px", borderRadius: "100%" }}
           />
-          <button onClick={getCroppedImg}>Crop Image</button>
-        </div>
-      )}
-      {result && (
-        <div>
-          <img src={result} alt="cropped image" />
-        </div>
-      )}
-      <button onClick={uploadImage}>upload</button>
+          <label>{user.displayName}</label>
+          </div>
+        ) : ("")}
+          <Profile />
+      </UserContext.Provider> 
     </div>
   );
 }
